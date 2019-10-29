@@ -1,11 +1,22 @@
 import socket
-import pickle
-import shelve
+import sqlite3
 import os
 from threading import Thread
 from uuid import getnode as get_mac 
-from socketserver import ThreadingMixIn 
+from socketserver import ThreadingMixIn
 
+conn = sqlite3.connect('dbs/nodes.db')
+c = conn.cursor()
+
+def create_table():
+    with conn:
+        c.execute('''CREATE TABLE IF NOT EXISTS nodes(
+            node_id blob NOT NULL,
+            node_type blob NOT NULL,
+            node_ip blob NOT NULL,
+            last_connect blob NOT NULL
+        )''')
+    
 # Multithreaded Python server : TCP Server Socket Thread Pool
 class ClientThread(Thread):     
     def __init__(self,ip,port): 
@@ -17,26 +28,19 @@ class ClientThread(Thread):
         node_type = ""
  
     def run(self):
+        node_conn = sqlite3.connect('dbs/nodes.db')
+        node_c = node_conn.cursor()
         node_list = []
+        
         while True : 
             data = str(conn.recv(2048), "utf-8")
-            print(data)
             
-            if "[NODEID]" in data:
-                if "utility" in data:
-                    node_type = "utility"
-                    with shelve.open('nodes') as node_db:
-                        new_node_id = data.replace("[NODEID]: utility-", "")
-                        with shelve.open('nodes') as node_db:
-                            print(node_db)
-                else:
-                    node_type = "storage"
-            else:
-                print(data)
-                
+            if "[CONFIRM_NODE]" in data:
+                print('asd')
+                            
 # Multithreaded Python server : TCP Server Socket Program Stub
 TCP_IP = '0.0.0.0' 
-TCP_PORT = 2004 
+TCP_PORT = 1980 
 BUFFER_SIZE = 20  # Usually 1024, but we need quick response 
 
 tcpServer = socket.socket(socket.AF_INET, socket.SOCK_STREAM) 

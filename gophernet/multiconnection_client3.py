@@ -1,12 +1,15 @@
+import socket
+import os
+
 # Python TCP Client B
 import socket
 from uuid import getnode as get_mac  
 
 host = socket.gethostname() 
-port = 2004
+port = 2003
 BUFFER_SIZE = 2000
 node_id = str(get_mac()) 
-MESSAGE = bytes("[GETNODES]: utility-" + node_id, "utf-8")
+MESSAGE = bytes("[CONFIRM_NODE]: utility-" + node_id, "utf-8")
  
 tcpClientB = socket.socket(socket.AF_INET, socket.SOCK_STREAM) 
 tcpClientB.connect((host, port))
