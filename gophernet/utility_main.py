@@ -1,7 +1,11 @@
 import socket
 import sqlite3
 import os
+import hashlib
+import threading
+
 from threading import Thread
+from random import *
 from uuid import getnode as get_mac 
 from socketserver import ThreadingMixIn
 
@@ -9,9 +13,11 @@ conn = sqlite3.connect('dbs/nodes.db')
 c = conn.cursor()
 
 BUFFER_SIZE = 20
-transmit_port = 2003
+transmit_port = 1980
 
-def create_table():
+my_node_id = ("utility-" + str(get_mac()))
+
+def create_node_table():
     with conn:
         c.execute('''CREATE TABLE IF NOT EXISTS nodes(
             node_id blob NOT NULL,
@@ -19,7 +25,24 @@ def create_table():
             node_ip blob NOT NULL,
             last_connect blob NOT NULL
         )''')
-print(create_table())
+    
+    
+create_node_table()
+
+def create_confirmed_table():
+    with conn:
+        c.execute('''CREATE TABLE IF NOT EXISTS confirmed_nodes(
+            node_id blob NOT NULL,
+            node_type blob NOT NULL
+        )''')
+create_confirmed_table()
+
+def create_tasks_table():
+    with conn:
+        c.execute('''CREATE TABLE IF NOT EXISTS tasks(
+            task_id blob NOT NULL,
+            node_type blob NOT NULL
+        )''')
     
 # Multithreaded Python server : TCP Server Socket Thread Pool
 class ClientThread(Thread):     
@@ -55,10 +78,10 @@ class ClientThread(Thread):
                         print(node_lookup(node_id))
                 else:
                     node_type = "storage"
-            else:
+            elif "[GETNODES]" in data:
                 print(data)
                 
-                if "[GETNODES]" and "utility" in data:
+                if "utility" in data:
                     node_id = data.replace("[GETNODES]: utility-", "", 1)
                     
                     def find_node(node_id):
@@ -74,19 +97,62 @@ class ClientThread(Thread):
                             
                         nodes = node_lookup(node_id)
 
+                    else:
+                        def node_lookup(node_id):
+                            node_c.execute('SELECT * FROM nodes;')
+                            
+                            return node_c.fetchall()
+                            
+                        nodes = node_lookup(node_id)
+                    
+                        confirmed_nodes = []
+                    
                         for node in nodes:
-                            def confirm_node(node_ip):
-                                message = bytes("[CONFIRM_NODE]: utility-" + node_id, "utf-8")
+                            print(node)
+                            def verify_node(node_ip):
+                                message = bytes("[VERIFY_NODE]: utility-" + node_id, "utf-8")
                                 tcpClient = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                                 tcpClient.connect((node_ip, transmit_port))
                                 
-                                send_message = tcpClient.send(message)
+                                tcpClient.send(message)
                                     
-                                if send_message:
-                                    print('sent_message')
+                            #replace 0.0.0.0 with node[2]
+                            verify_node('0.0.0.0')
                             
-                            confirm_node(node[2])
+                            def confirm_node(node_id):
+                                t = threading.Timer(5.0, confirm_node(node[0]))
+                                t.start()
                                 
+                                node_c.execute('SELECT * FROM confirmed_nodes WHERE node_id="' + node_id + '";')
+                                
+                                rows = node_c.fetchall()
+                                
+                                if len(rows) > 0:
+                                    confirmed_nodes.append(node_id)
+                                    t.stop()
+                            confirm_node(node_id)
+                            
+                elif "[CONFIRM_NODE]" in data:
+                    if "utility" in data:
+                        node_id = data.replace("[CONFIRM_NODE]: utility-", "", 1)
+                        
+                        def confirm_node(node_id):
+                            node_c.execute('INSERT INTO confirmed_nodes (node_id, node_type) VALUES ("' + node_id + '", "utility")')
+                            
+                            node_conn.commit()
+                        
+                        confirm_node(node_id)
+                    else:
+                        node_id = data.replace("[CONFIRM_NODE]: storage-", "", 1)
+                        
+                        def confirm_node(node_id):
+                            node_c.execute('INSERT INTO confirmed_nodes (node_id, node_type) VALUES ("' + node_id + '", "storage")')
+                            
+                            node_conn.commit()
+                        
+                        confirm_node(node_id)
+                            
+                            
 # Multithreaded Python server : TCP Server Socket Program Stub
 TCP_IP = '0.0.0.0' 
 TCP_PORT = 2004 

@@ -6,7 +6,7 @@ import socket
 from uuid import getnode as get_mac  
 
 host = socket.gethostname() 
-port = 2003
+port = 2004
 BUFFER_SIZE = 2000
 node_id = str(get_mac()) 
 MESSAGE = bytes("[CONFIRM_NODE]: utility-" + node_id, "utf-8")

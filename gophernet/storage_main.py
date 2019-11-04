@@ -8,6 +8,8 @@ from socketserver import ThreadingMixIn
 conn = sqlite3.connect('dbs/nodes.db')
 c = conn.cursor()
 
+my_node_id = ("utility-" + str(get_mac()))
+
 def create_table():
     with conn:
         c.execute('''CREATE TABLE IF NOT EXISTS nodes(
@@ -35,8 +37,14 @@ class ClientThread(Thread):
         while True : 
             data = str(conn.recv(2048), "utf-8")
             
-            if "[CONFIRM_NODE]" in data:
-                print('asd')
+            if "[VERIFY_NODE]" in data:
+                tcpClient = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                tcpClient.connect((ip, 2004))
+                
+                message = bytes("[CONFIRM_NODE]: utility-" + my_node_id, "utf-8")
+                
+                print(message)
+                tcpClient.send(message)
                             
 # Multithreaded Python server : TCP Server Socket Program Stub
 TCP_IP = '0.0.0.0' 
