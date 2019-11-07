@@ -36,7 +36,7 @@ class ClientThread(Thread):
         
         while True : 
             data = str(conn.recv(2048), "utf-8")
-            
+
             if "[VERIFY_NODE]" in data:
                 tcpClient = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 tcpClient.connect((ip, 2004))
@@ -45,6 +45,17 @@ class ClientThread(Thread):
                 
                 print(message)
                 tcpClient.send(message)
+                
+            if "[SENDNODE]" in data:
+                split_message = data.split(",")
+                
+                node_id = split_message[0].replace('[SENDNODE]: node_id=', '', 1)
+                node_ip = split_message[1].replace(' node_ip=', '', 1)
+                node_type = split_message[2].replace(' node_type=', '', 1)
+                
+                def insert_node():
+                    with conn:
+                        node_c.execute('INSERT INTO nodes (node_id, node_type, node_ip, last_connect) VALUES ("' + node_id + '", "' + node_type + '", "' + node_ip + '", "last_connect")')
                             
 # Multithreaded Python server : TCP Server Socket Program Stub
 TCP_IP = '0.0.0.0' 

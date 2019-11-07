@@ -3,6 +3,7 @@ import sqlite3
 import os
 import hashlib
 import threading
+import time
 
 from threading import Thread
 from random import *
@@ -43,6 +44,16 @@ def create_tasks_table():
             task_id blob NOT NULL,
             node_type blob NOT NULL
         )''')
+        
+def create_metadata_table():
+    with conn:
+        c.execute('''CREATE TABLE IF NOT EXISTS storage_info(
+            file_id blob NOT NULL,
+            filepath blob NOT NULL,
+            file_name blob NOT NULL,
+            nodes blob not NULL
+        )''')
+create_metadata_table()
     
 # Multithreaded Python server : TCP Server Socket Thread Pool
 class ClientThread(Thread):     
@@ -80,79 +91,61 @@ class ClientThread(Thread):
                     node_type = "storage"
             elif "[GETNODES]" in data:
                 print(data)
+                            
+                def node_lookup():
+                    node_c.execute('SELECT * FROM nodes;')
+                    return node_c.fetchall()
+                    
+                nodes = node_lookup()
                 
+                for node in nodes:
+                    #print(node)
+                    tcpClient = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    tcpClient.connect(('0.0.0.0', 1980))
+                    
+                    message = bytes("[SENDNODE]: node_id=" + node[0] + ", node_ip=" + node[2] + ", node_type=" + node[2], "utf-8")
+                    
+                    tcpClient.send(message)
+                    
+            elif "[CONFIRM_NODE]" in data:
                 if "utility" in data:
-                    node_id = data.replace("[GETNODES]: utility-", "", 1)
+                    node_id = data.replace("[CONFIRM_NODE]: utility-", "", 1)
                     
-                    def find_node(node_id):
-                        node_c.execute('SELECT * FROM nodes WHERE node_id="' + node_id + '";')
+                    def confirm_node(node_id):
+                        node_c.execute('INSERT INTO confirmed_nodes (node_id, node_type) VALUES ("' + node_id + '", "utility")')
+                            
+                        node_conn.commit()
                         
-                        return node_c.fetchall()
+                    confirm_node(node_id)
+                else:
+                    node_id = data.replace("[CONFIRM_NODE]: storage-", "", 1)
+                        
+                    def confirm_node(node_id):
+                        node_c.execute('INSERT INTO confirmed_nodes (node_id, node_type) VALUES ("' + node_id + '", "storage")')
+                            
+                        node_conn.commit()
+                        
+                    confirm_node(node_id)
                     
-                    if find_node(node_id) != []:
-                        def node_lookup(node_id):
-                            node_c.execute('SELECT * FROM nodes;')
-                            
-                            return node_c.fetchall()
-                            
-                        nodes = node_lookup(node_id)
-
-                    else:
-                        def node_lookup(node_id):
-                            node_c.execute('SELECT * FROM nodes;')
-                            
-                            return node_c.fetchall()
-                            
-                        nodes = node_lookup(node_id)
+            elif "[TASK]" in data:
+                print(data)
+            
+            elif "[STORAGE_EVENT]" in data:
+                initial_replace = data.replace('[STORAGE_EVENT]: ', '', 1)
+                metadata = initial_replace.split(',')
+                
+                node_list = metadata[3].replace(' storage_nodes=', '', 1)
+                file_id = metadata[0].replace('file_id=', '', 1)
+                file_name = metadata[1].replace(' filename=', '', 1)
+                file_path = metadata[2].replace(' filepath=', '', 1)
+                
+                def insertStorageEvent(storageNodes, fileId, fileName, filePath):
+                    node_c.execute('INSERT INTO storage_info (file_id, filepath, file_name, nodes) VALUES ("' + file_id + '",  "' + file_path + '", "' + file_name + '", "' + node_list + '");')
+                    node_conn.commit()
                     
-                        confirmed_nodes = []
-                    
-                        for node in nodes:
-                            print(node)
-                            def verify_node(node_ip):
-                                message = bytes("[VERIFY_NODE]: utility-" + node_id, "utf-8")
-                                tcpClient = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                                tcpClient.connect((node_ip, transmit_port))
-                                
-                                tcpClient.send(message)
-                                    
-                            #replace 0.0.0.0 with node[2]
-                            verify_node('0.0.0.0')
-                            
-                            def confirm_node(node_id):
-                                t = threading.Timer(5.0, confirm_node(node[0]))
-                                t.start()
-                                
-                                node_c.execute('SELECT * FROM confirmed_nodes WHERE node_id="' + node_id + '";')
-                                
-                                rows = node_c.fetchall()
-                                
-                                if len(rows) > 0:
-                                    confirmed_nodes.append(node_id)
-                                    t.stop()
-                            confirm_node(node_id)
-                            
-                elif "[CONFIRM_NODE]" in data:
-                    if "utility" in data:
-                        node_id = data.replace("[CONFIRM_NODE]: utility-", "", 1)
-                        
-                        def confirm_node(node_id):
-                            node_c.execute('INSERT INTO confirmed_nodes (node_id, node_type) VALUES ("' + node_id + '", "utility")')
-                            
-                            node_conn.commit()
-                        
-                        confirm_node(node_id)
-                    else:
-                        node_id = data.replace("[CONFIRM_NODE]: storage-", "", 1)
-                        
-                        def confirm_node(node_id):
-                            node_c.execute('INSERT INTO confirmed_nodes (node_id, node_type) VALUES ("' + node_id + '", "storage")')
-                            
-                            node_conn.commit()
-                        
-                        confirm_node(node_id)
-                            
-                            
+                insertStorageEvent(node_list, file_id, file_name, file_path)
+                
+                
 # Multithreaded Python server : TCP Server Socket Program Stub
 TCP_IP = '0.0.0.0' 
 TCP_PORT = 2004 
