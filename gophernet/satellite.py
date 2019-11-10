@@ -1,3 +1,4 @@
+#sudo python3 pyeclib_encode.py 6 12 liberasurecode_rs_vand ../../ test.txt ../../target_dir
 import socket
 import sqlite3
 import os
