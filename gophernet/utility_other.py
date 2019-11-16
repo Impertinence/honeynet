@@ -1,11 +1,12 @@
 import socket
 import sqlite3
 import os
+
 from threading import Thread
 from uuid import getnode as get_mac 
 from socketserver import ThreadingMixIn
 
-conn = sqlite3.connect('dbs/nodes.db')
+conn = sqlite3.connect('dbs/utility_dbs/nodes_other.db')
 c = conn.cursor()
 
 my_node_id = ("utility-" + str(get_mac()))
@@ -30,13 +31,28 @@ class ClientThread(Thread):
         node_type = ""
  
     def run(self):
-        node_conn = sqlite3.connect('dbs/nodes.db')
+        node_conn = sqlite3.connect('dbs/utility_dbs/nodes_other.db')
         node_c = node_conn.cursor()
         node_list = []
         
         while True : 
             data = str(conn.recv(2048), "utf-8")
-
+            
+            if "[NODEID]" in data:
+                node_id = data.replace('[NODEID]: ', '', 1)
+                node_c.execute('SELECT * FROM nodes WHERE node_id="' + node_id + '";')
+                node_list = node_c.fetchall()
+                
+                if len(node_list) > 0:
+                    print('node_already_exists')
+                else:
+                    if "utility" in data:
+                        node_c.execute('INSERT INTO nodes (node_id, node_type, node_ip, last_connect) VALUES ("' + node_id + '", "utility", "' + data + '", "last_connect")')
+                        node_conn.commit()
+                    elif "storage" in data:
+                        node_c.execute('INSERT INTO nodes (node_id, node_type, node_ip, last_connect) VALUES ("' + node_id + '", "storage", "' + data + '", "last_connect")')
+                        node_conn.commit()
+                        
             if "[VERIFY_NODE]" in data:
                 tcpClient = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 tcpClient.connect((ip, 2004))
@@ -56,6 +72,24 @@ class ClientThread(Thread):
                 def insert_node():
                     with conn:
                         node_c.execute('INSERT INTO nodes (node_id, node_type, node_ip, last_connect) VALUES ("' + node_id + '", "' + node_type + '", "' + node_ip + '", "last_connect")')
+            
+            if "[GETNODES]" in data:
+                print(data)
+                            
+                def node_lookup():
+                    node_c.execute('SELECT * FROM nodes;')
+                    return node_c.fetchall()
+                    
+                nodes = node_lookup()
+                
+                for node in nodes:
+                    #print(node)
+                    tcpClient = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    tcpClient.connect(('0.0.0.0', 2003))
+                    
+                    message = bytes("[SENDNODE]: node_id=" + node[0] + ", node_ip=" + node[2] + ", node_type=" + node[2], "utf-8")
+                    
+                    tcpClient.send(message)
                             
 # Multithreaded Python server : TCP Server Socket Program Stub
 TCP_IP = '0.0.0.0' 

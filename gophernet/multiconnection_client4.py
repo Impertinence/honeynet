@@ -12,19 +12,15 @@ def generateFileId(stringLength=6):
     lettersAndDigits = string.ascii_letters + string.digits
     return ''.join(random.choice(lettersAndDigits) for i in range(stringLength))  
 
-generateFileId(20)
-
 def generateSatelliteId(stringLength=6):
     lettersAndDigits = string.ascii_letters + string.digits
     return ''.join(random.choice(lettersAndDigits) for i in range(stringLength))
-    
-generateSatelliteId(20)
 
 host = socket.gethostname() 
 port = 2004
 BUFFER_SIZE = 2000
 node_id = str(get_mac()) 
-MESSAGE = bytes("[STORAGE_EVENT]: file_id=" + generateFileId(20) + ", filename=test.txt, filepath=/test/test/, storage_nodes='" + node_id + " " + node_id + " " + node_id + "', satellite_id=" + generateSatelliteId(20), "utf-8")
+MESSAGE = bytes("[PREPARE_STORAGE]: file_id=" + generateFileId(20) + ", satellite_id=" + generateSatelliteId(20), "UTF-8")
  
 tcpClientB = socket.socket(socket.AF_INET, socket.SOCK_STREAM) 
 tcpClientB.connect((host, port))

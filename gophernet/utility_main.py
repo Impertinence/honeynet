@@ -10,7 +10,7 @@ from random import *
 from uuid import getnode as get_mac 
 from socketserver import ThreadingMixIn
 
-conn = sqlite3.connect('dbs/nodes.db')
+conn = sqlite3.connect('dbs/utility_dbs/nodes.db')
 c = conn.cursor()
 
 BUFFER_SIZE = 20
@@ -48,6 +48,7 @@ def create_tasks_table():
 def create_metadata_table():
     with conn:
         c.execute('''CREATE TABLE IF NOT EXISTS storage_info(
+            satellite_id blob NOT NULL,
             file_id blob NOT NULL,
             filepath blob NOT NULL,
             file_name blob NOT NULL,
@@ -134,18 +135,54 @@ class ClientThread(Thread):
                 initial_replace = data.replace('[STORAGE_EVENT]: ', '', 1)
                 metadata = initial_replace.split(',')
                 
+                satellite_id = metadata[4].replace(' satellite_id=', '', 1)
                 node_list = metadata[3].replace(' storage_nodes=', '', 1)
                 file_id = metadata[0].replace('file_id=', '', 1)
                 file_name = metadata[1].replace(' filename=', '', 1)
                 file_path = metadata[2].replace(' filepath=', '', 1)
                 
+                def eventLookup(file_id):
+                    node_c.execute('SELECT * FROM storage_info WHERE file_id="' + '";')
+                    return node_c.fetchall()
+                
                 def insertStorageEvent(storageNodes, fileId, fileName, filePath):
-                    node_c.execute('INSERT INTO storage_info (file_id, filepath, file_name, nodes) VALUES ("' + file_id + '",  "' + file_path + '", "' + file_name + '", "' + node_list + '");')
+                    node_c.execute('INSERT INTO storage_info (satellite_id, file_id, filepath, file_name, nodes) VALUES ("' + file_id + '",  "' + file_path + '", "' + file_name + '", "' + node_list + '");')
                     node_conn.commit()
                     
-                insertStorageEvent(node_list, file_id, file_name, file_path)
+                def get_nodes():
+                    node_c.execute('SELECT * FROM nodes WHERE node_type="utility";')
+                    return node_c.fetchall()
                 
-                
+                nodes = get_nodes()
+                for node in nodes:
+                    host = '0.0.0.0'
+                    tcpClient = socket.socket(socket.AF_INET, socket.SOCK_STREAM) 
+                    tcpClient.send((host, 1980))
+                    
+                    tcpClient.send(bytes(data, 'UTF-8'))
+                        
+def maintainConn():
+    maintain_conn = sqlite3.connect('dbs/utility_dbs/nodes.db')
+    maintain_c = maintain_conn.cursor()
+    
+    maintain_c.execute('SELECT * FROM nodes;')
+    
+    node_list = maintain_c.fetchall()
+    
+    for node in node_list:
+        node_ip = node[2]
+        
+        port = 1980
+        host = '0.0.0.0'
+        
+        tcpClient = socket.socket(socket.AF_INET, socket.SOCK_STREAM) 
+        tcpClient.connect((host, port))
+        
+        tcpClient.send(bytes('[NODEID]: ' + my_node_id, "UTF-8"))
+    threading.Timer(300.0, maintainConn).start()
+    
+maintainConn()
+
 # Multithreaded Python server : TCP Server Socket Program Stub
 TCP_IP = '0.0.0.0' 
 TCP_PORT = 2004 
