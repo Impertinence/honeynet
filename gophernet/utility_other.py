@@ -1,6 +1,7 @@
 import socket
 import sqlite3
 import os
+import datetime
 
 from threading import Thread
 from uuid import getnode as get_mac 
@@ -87,9 +88,19 @@ class ClientThread(Thread):
                     tcpClient = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                     tcpClient.connect(('0.0.0.0', 2003))
                     
-                    message = bytes("[SENDNODE]: node_id=" + node[0] + ", node_ip=" + node[2] + ", node_type=" + node[2], "utf-8")
+                    message = bytes("[SENDNODE]: node_id=" + node[0] + ", node_ip=" + node[1] + ", node_type=" + node[2], "utf-8")
                     
                     tcpClient.send(message)
+            
+            if "[GET_STORAGE_NODES]:" in data:
+                node_c.execute('SELECT * FROM nodes WHERE node_type="storage";')
+                
+                current_time = 
+                storage_nodes = node_c.fetchall()
+                active_nodes = []
+                
+                for node in storage_nodes:
+                    if node[]
                             
 # Multithreaded Python server : TCP Server Socket Program Stub
 TCP_IP = '0.0.0.0' 

@@ -12,6 +12,7 @@ import hashlib
 import threading
 import time
 import argparse
+import datetime
 
 from threading import Thread
 from random import *
@@ -50,8 +51,9 @@ class ClientThread(Thread):
                 raw_message = data.replace('[SENDNODE]: node_id=', '', 1)
                 message = raw_message.split(',')
                 
+                node_ip = message[2]
                 node_id = message[0]
-                node_
+                
                 print(node_id)
                 
 
@@ -70,6 +72,9 @@ def findNodes():
         tcpClient.connect((host, port))
         
         tcpClient.send(bytes("[GETNODES]: " + my_node_id, "UTF-8"))
+    
+    threading.Timer(300.0, findNodes).start()
+        
 findNodes()
 
 # Multithreaded Python server : TCP Server Socket Program Stub

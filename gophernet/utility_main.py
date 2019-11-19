@@ -4,6 +4,7 @@ import os
 import hashlib
 import threading
 import time
+import errno
 
 from threading import Thread
 from random import *
@@ -176,9 +177,12 @@ def maintainConn():
         host = '0.0.0.0'
         
         tcpClient = socket.socket(socket.AF_INET, socket.SOCK_STREAM) 
-        tcpClient.connect((host, port))
         
-        tcpClient.send(bytes('[NODEID]: ' + my_node_id, "UTF-8"))
+        try:
+            tcpClient.connect((host, port))
+            tcpClient.send(bytes('[NODEID]: ' + my_node_id, "UTF-8"))
+        except:
+            print('[-] ' + node[1] + '-' + node[0] + ' offline')
     threading.Timer(300.0, maintainConn).start()
     
 maintainConn()

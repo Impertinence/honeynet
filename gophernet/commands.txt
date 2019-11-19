@@ -1,0 +1,4 @@
+[STORAGE_EVENT]: file_id= , filename= , filepath= , storage_nodes=
+[NODEID]: MY_NODE_ID
+[TRANSFER_READY]: file_id= , file_num=
+[GETNODES]: MY_NODE_ID
