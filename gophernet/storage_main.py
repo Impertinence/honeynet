@@ -16,8 +16,8 @@ from pyftpdlib.handlers import FTPHandler
 from pyftpdlib.servers import FTPServer
 
 authorizer = DummyAuthorizer()
-authorizer.add_user("root", "ae0iuwRmna1851Yils1605Uees2199", "storage_dir", perm="elradfmwMT")
-authorizer.add_anonymous("/home/nobody")
+#authorizer.add_user("root", "ae0iuwRmna1851Yils1605Uees2199", "storage_dir", perm="elradfmwMT")
+authorizer.add_anonymous("storage_dir/")
 
 handler = FTPHandler
 handler.authorizer = authorizer
@@ -87,11 +87,18 @@ class ClientThread(Thread):
                 satellite_id = raw_message[1].replace(' satellite_id=', '', 1)
                 
                 host = "0.0.0.0"
+
                 tcpClient = socket.socket(socket.AF_INET, socket.SOCK_STREAM) 
-                tcpClient.connect((host, 2003))
-                
-                tcpClient.send(bytes('[TRANSFER_READY]: node_id=' + my_node_id + ', file_id=', 'UTF-8'))
-                
+
+                while message is None:
+                    try:
+                        tcpClient.connect((host, 2003))
+                        tcpClient.send(bytes('[TRANSFER_READY]: node_id=' + my_node_id + ', file_id=', 'UTF-8'))
+                        message = "message_sent"
+                        
+                        server.serve_forever()
+                    except: 
+                        pass
 file_list = []                
 
 def maintainConn():
