@@ -23,6 +23,7 @@ handler = FTPHandler
 handler.authorizer = authorizer
 
 server = FTPServer(("127.0.0.1", 2005), handler)
+server.serve_forever()
 
 
 conn = sqlite3.connect('dbs/storage_dbs/nodes.db')
@@ -95,8 +96,6 @@ class ClientThread(Thread):
                         tcpClient.connect((host, 2003))
                         tcpClient.send(bytes('[TRANSFER_READY]: node_id=' + my_node_id + ', file_id=', 'UTF-8'))
                         message = "message_sent"
-                        
-                        server.serve_forever()
                     except: 
                         pass
 file_list = []                

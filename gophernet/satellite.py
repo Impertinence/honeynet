@@ -67,7 +67,7 @@ filepath = input('filepath>')
 filename = input('filename>')
 
 raw_file = filepath + '/' + filename
-file_ext = os.path.splitext(file_ext)[1]
+file_ext = os.path.splitext(raw_file)[1]
 
 node_c.execute('SELECT * FROM buckets;')
 bucketList = node_c.fetchall()
