@@ -30,8 +30,16 @@ node_conn = sqlite3.connect('dbs/satellite_dbs/satellite.db')
 node_c = node_conn.cursor()
 my_node_id = ("satellite-" + str(get_mac()))
 
+staging_files = os.listdirs('staging_dir')
+
+for file in staging_files:
+    print(file)
+
 if not os.path.exists('staging_dir'):
-    os.mkdirs('staging_dir')
+    os.mkdir('staging_dir')
+    
+if not os.path.exists('retrieval_dir'):
+    os.mkdir('retrieval_dir')
 
 def create_node_table():
     with node_conn:
@@ -50,7 +58,7 @@ def create_file_table():
             file_id blob NOT NULL,
             bucket_id blob NOT NULL,
             encryption_key blob NOT NULL,
-            filepath blob NOT NULL,
+            file_ext blob NOT NULL,
             filename blob NOT NULL
         )''')
 create_file_table()
@@ -108,8 +116,8 @@ if len(bucketList) == 1:
         
         pyAesCrypt.encryptFile(raw_file, encrypted_file, encryption_key, bufferSize)
         
-        k_element = "20"
-        m_element = "40"
+        k_element = "10"
+        m_element = "20"
         
         ec_driver = ECDriver(k=k_element, m=m_element, ec_type="liberasurecode_rs_vand")
         
@@ -120,11 +128,11 @@ if len(bucketList) == 1:
         
         i = 0
         for fragment in fragments:
-            with open("staging_dir/" + encrypted_file + "." + i, "wb") as fp:
+            with open(encrypted_file + "." + str(i), "wb") as fp:
                 fp.write(fragment)
             i += 1
             
-        node_c.execute('INSERT INTO files (file_id, bucket_id, encryption_key, filepath, filename) VALUES ("' + file_id + '", "' + bucket_id + '")')
+        node_c.execute('INSERT INTO files (file_id, bucket_id, encryption_key, filename) VALUES ("' + file_id + '", "' + bucket_id + '", "' + encryption_key + '", "' + file_ext + '", "' + filename + '")')
         node_conn.commit()
         
         #node_c.execute('INSERT INTO files (file_id, bucket_id, bucketname, filepath, filename) VALUES ("' + file_id + '", "' + bucket_id + '", "' + bucket_name + '", "' + filepath'", "' + filename + '")')
