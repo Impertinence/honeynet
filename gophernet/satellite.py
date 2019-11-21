@@ -12,20 +12,26 @@ import hashlib
 import threading
 import time
 import argparse
-import datetime
 import pyeclib
 import os
 import string
+import random
+import base64
+import pyAesCrypt
+import hashlib
 
+from datetime import datetime
 from pyeclib.ec_iface import ECDriver
 from threading import Thread
-from random import *
 from uuid import getnode as get_mac 
 from socketserver import ThreadingMixIn
 
 node_conn = sqlite3.connect('dbs/satellite_dbs/satellite.db')
 node_c = node_conn.cursor()
 my_node_id = ("satellite-" + str(get_mac()))
+
+if not os.path.exists('staging_dir'):
+    os.mkdirs('staging_dir')
 
 def create_node_table():
     with node_conn:
@@ -43,7 +49,7 @@ def create_file_table():
         node_c.execute('''CREATE TABLE IF NOT EXISTS files(
             file_id blob NOT NULL,
             bucket_id blob NOT NULL,
-            bucketname blob NOT NULL,
+            encryption_key blob NOT NULL,
             filepath blob NOT NULL,
             filename blob NOT NULL
         )''')
@@ -59,6 +65,15 @@ def create_buckets_table():
         )''')
 create_buckets_table()
 
+def createMasterBucket():
+    node_c.execute('SELECT * FROM buckets;')
+    bucket_list = node_c.fetchall()
+    
+    if len(bucket_list) == 0:
+        node_c.execute('INSERT INTO buckets (bucket_id, satellite_id, bucket_name, bucket_master) VALUES ("MASTER", "' + my_node_id + '", "MASTER", "this_is_master");')
+        node_conn.commit()
+createMasterBucket()
+
 print('''
     WELCOME TO THE HONEYNET CLI INTERFACE
 ''')
@@ -72,96 +87,48 @@ file_ext = os.path.splitext(raw_file)[1]
 node_c.execute('SELECT * FROM buckets;')
 bucketList = node_c.fetchall()
 
-if len(bucketList) == 0:
+if len(bucketList) == 1:
     print('''
         CHOOSE A BUCKET
     ''')
     print('1. Master Bucket')
     print('2. Create Bucket')
+    
     bucket_num = input('bucket(number)>')
     
-    if bucket_num == "2":
-        print('''
-            CREATE A BUCKET
-        ''')
+    if bucket_num == "1":
+        now = datetime.now()
+        time = now.strftime("%m/%d/%Y, %H:%M:%S")
+        file_id = base64.b64encode(bytes(time, "UTF-8"))
         
-        bucket_name = input('bucket name>')
+        bufferSize = 64 * 1024
         
-        def generateBucketId(stringLength=6):
-            """Generate a random string of letters and digits """
-            lettersAndDigits = string.ascii_letters + string.digits
-            return ''.join(random.choice(lettersAndDigits) for i in range(stringLength))
+        encryption_key = str(random.getrandbits(128))
+        encrypted_file = "staging_dir/" + filename + ".aes"
+        
+        pyAesCrypt.encryptFile(raw_file, encrypted_file, encryption_key, bufferSize)
+        
+        k_element = "20"
+        m_element = "40"
+        
+        ec_driver = ECDriver(k=k_element, m=m_element, ec_type="liberasurecode_rs_vand")
+        
+        with open(encrypted_file, "rb") as fp:
+            whole_file_str = fp.read()
             
-        def generateFileId(stringLength=6):
-            """Generate a random string of letters and digits """
-            lettersAndDigits = string.ascii_letters + string.digits
-            return ''.join(random.choice(lettersAndDigits) for i in range(stringLength))
+        fragments = ec_driver.encode(whole_file_str)
+        
+        i = 0
+        for fragment in fragments:
+            with open("staging_dir/" + encrypted_file + "." + i, "wb") as fp:
+                fp.write(fragment)
+            i += 1
             
-        bucket_id = generateBucketId(20)
-        file_id = generateFileId(20)
-        bucket_master = "MASTER"
+        node_c.execute('INSERT INTO files (file_id, bucket_id, encryption_key, filepath, filename) VALUES ("' + file_id + '", "' + bucket_id + '")')
+        node_conn.commit()
         
-        def insertBucket():
-            node_c.execute('INSERT INTO buckets (bucket_id, satellite_id, bucket_name, bucket_master) VALUES ("' + bucket_id + '", "' + my_node_id + '", "' + bucket_name + '", "' + bucket_master + '")')
-            node_conn.commit()
-        
-        if insertBucket():
-            def nodecount():
-                node_c.execute('SELECT * FROM nodes WHERE node_type="storage";')
-                return node_c.fetchall()
-                
-            if len(nodecount()) > 0:
-                m_elements = len(nodecount())
-                k_elements = len(nodecount())/2
-                ecode_type = "liberasurecode_rs_vand"
-                
-                ec_driver = ECDriver(k=k_elements, m=m_elements, ec_type=ecode_type)
-                
-                with open("%s/%s" % (filepath, filename), "rb") as fp:
-                    file_str = fp.read()
-                    
-                fragments = ec_driver.encode(file_str)
-                
-                i = 0
-                #for fragment in fragments:
-                #    with open("staging_dir/" + file_id + ".." + i, "rb") as fp:
-
-            #node_c.execute('INSERT INTO files (file_id, bucket_id, bucketname, filepath, filename) VALUES ("' + file_id + '", "' + bucket_id + '", "' + bucket_name + '", "' + filepath'", "' + filename + '")')
-            #node_c.commit()
-        
-        if bucket_num == "1":
-            def generateFileId(stringLength=6):
-                """Generate a random string of letters and digits """
-                lettersAndDigits = string.ascii_letters + string.digits
-                return ''.join(random.choice(lettersAndDigits) for i in range(stringLength))
-                
-            file_id = generateFileId(20)
-            
-        
-            def nodecount():
-                node_c.execute('SELECT * FROM nodes WHERE node_type="storage";')
-                return node_c.fetchall()
-                
-            if len(nodecount()) > 0:
-                m_elements = len(nodecount())
-                k_elements = len(nodecount())/2
-                ecode_type = "liberasurecode_rs_vand"
-                
-                ec_driver = ECDriver(k=k_elements, m=m_elements, ec_type=ecode_type)
-                
-                with open("%s/%s" % (filepath, filename), "rb") as fp:
-                    file_str = fp.read()
-                    
-                fragments = ec_driver.encode(file_str)
-                
-                i = 0
-                for fragment in fragments:
-                   with open("staging_dir/" + file_id + file_ext + "." + i, "rb") as fp:
-                        fp.write(fragment)
-                    i += 1
-
-            #node_c.execute('INSERT INTO files (file_id, bucket_id, bucketname, filepath, filename) VALUES ("' + file_id + '", "' + bucket_id + '", "' + bucket_name + '", "' + filepath'", "' + filename + '")')
-            #node_c.commit()
+        #node_c.execute('INSERT INTO files (file_id, bucket_id, bucketname, filepath, filename) VALUES ("' + file_id + '", "' + bucket_id + '", "' + bucket_name + '", "' + filepath'", "' + filename + '")')
+        #node_c.commit()
             
 def fileCheck():
     node_c.execute('SELECT * FROM files;')
