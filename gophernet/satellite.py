@@ -1,9 +1,4 @@
-#sudo python3 pyeclib_encode.py 6 12 liberasurecode_rs_vand ../../ test.txt ../../target_dir
-#sudo python3 pyeclib_decode.py 6 12 ../../target_dir/test.txt.0
-#./../target_dir/test.txt.1 ../../target_dir/test.txt.2 ../../target_dir/test.txt.3 ../../target_dir/test.txt.4 ../../target_dir/test.t
-#t.5 ../../target_dir/test.txt.6 ../../target_dir/test.txt.7 ../../target_dir/test.txt.8 ../../target_dir/test.txt.9 ../../target_dir/te
-#t.txt.10 ../../target_dir/test.txt.11 ../../target_dir/test.txt.12 ../../target_dir/test.txt.13 ../../target_dir/test.txt.14 ../../targ
-#t_dir/test.txt.15 ../../target_dir/test.txt.16 ../../target_dir/test.txt.17
+#Written by Pranav Hegde
 
 import socket
 import sqlite3
@@ -19,7 +14,12 @@ import random
 import base64
 import pyAesCrypt
 import hashlib
+import json
+import hashlib
 
+from os import listdir
+from os.path import isfile, join
+from ftplib import FTP
 from datetime import datetime
 from pyeclib.ec_iface import ECDriver
 from threading import Thread
@@ -30,16 +30,14 @@ node_conn = sqlite3.connect('dbs/satellite_dbs/satellite.db')
 node_c = node_conn.cursor()
 my_node_id = ("satellite-" + str(get_mac()))
 
-staging_files = os.listdirs('staging_dir')
-
-for file in staging_files:
-    print(file)
-
 if not os.path.exists('staging_dir'):
     os.mkdir('staging_dir')
     
 if not os.path.exists('retrieval_dir'):
     os.mkdir('retrieval_dir')
+    
+def getStagedFiles():
+    return os.listdir('staging_dir')
 
 def create_node_table():
     with node_conn:
@@ -107,12 +105,19 @@ if len(bucketList) == 1:
     if bucket_num == "1":
         now = datetime.now()
         time = now.strftime("%m/%d/%Y, %H:%M:%S")
-        file_id = base64.b64encode(bytes(time, "UTF-8"))
+        raw_file_id = str(base64.b64encode(bytes(time, "UTF-8")))
+        first_replace = raw_file_id.replace("b'", '', 1)
+        
+        print(raw_file_id)
+        exit()
+        
+        file_id = first_replace.replace("'", "", 1)
+        bucket_id = "MASTER"
         
         bufferSize = 64 * 1024
         
         encryption_key = str(random.getrandbits(128))
-        encrypted_file = "staging_dir/" + filename + ".aes"
+        encrypted_file = "staging_dir/" + file_id + ".aes"
         
         pyAesCrypt.encryptFile(raw_file, encrypted_file, encryption_key, bufferSize)
         
@@ -132,9 +137,50 @@ if len(bucketList) == 1:
                 fp.write(fragment)
             i += 1
             
-        node_c.execute('INSERT INTO files (file_id, bucket_id, encryption_key, filename) VALUES ("' + file_id + '", "' + bucket_id + '", "' + encryption_key + '", "' + file_ext + '", "' + filename + '")')
+        node_c.execute('INSERT INTO files (file_id, bucket_id, encryption_key, file_ext, filename) VALUES ("' + file_id + '", "' + bucket_id + '", "' + encryption_key + '", "' + file_ext + '", "' + filename + '")')
         node_conn.commit()
         
+        def findUtility():
+            conn = sqlite3.connect('dbs/utility_dbs/nodes.db')
+            c = conn.cursor()
+        
+            c.execute('SELECT * FROM nodes WHERE node_type="utility";')
+            return c.fetchall()
+        
+        def findStorage():
+            conn = sqlite3.connect('dbs/utility_dbs/nodes.db')
+            c = conn.cursor()
+            
+            c.execute('SELECT * FROM nodes WHERE node_type="storage";')
+            return c.fetchall()
+            
+        utility_nodes = findUtility()
+        storage_nodes = findStorage()
+        
+        #for node in utility_nodes:
+        #    node_ip = node[2]
+        #    node_type = node[1]
+        #    node_id = node[0]
+            
+        #    tcpClient = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            
+        #    command_success = 0
+        #    
+        #    host = "0.0.0.0"
+        #    port = 1980
+        #    message = bytes("[STORAGE_EVENT]: file_id=" + file_id + ", filename=" + filename + ", filepath=" + filepath + ", ", "UTF-8")
+        #    
+        #    while command_success is 0:
+        #        try:
+        #            tcpClient.connect((host, port))
+        #            tcpClient.send(message)
+        #        except:
+        #            pass
+        
+        staged_files = [f for f in listdir('staging_dir') if isfile(join('staging_dir', f))]
+        
+        
+        #for node in storage_nodes_list
         #node_c.execute('INSERT INTO files (file_id, bucket_id, bucketname, filepath, filename) VALUES ("' + file_id + '", "' + bucket_id + '", "' + bucket_name + '", "' + filepath'", "' + filename + '")')
         #node_c.commit()
             
@@ -152,9 +198,12 @@ def fileCheck():
     threading.Timer(10.0, fileCheck).start()
            
 def findNodes():
-    node_c.execute('SELECT * FROM nodes;')
+    conn = sqlite3.connect('dbs/satellite_dbs/satellite.db')
+    c = conn.cursor()
     
-    current_node_list = node_c.fetchall()
+    c.execute('SELECT * FROM nodes;')
+    
+    current_node_list = c.fetchall()
     
     for node in current_node_list:
         node_ip = node[2]
