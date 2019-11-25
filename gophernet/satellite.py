@@ -1,4 +1,5 @@
 #Written by Pranav Hegde
+#Honey Labs
 
 import socket
 import sqlite3
@@ -15,7 +16,9 @@ import base64
 import pyAesCrypt
 import hashlib
 import json
+import itertools
 import hashlib
+import numpy
 
 from os import listdir
 from os.path import isfile, join
@@ -108,9 +111,6 @@ if len(bucketList) == 1:
         raw_file_id = str(base64.b64encode(bytes(time, "UTF-8")))
         first_replace = raw_file_id.replace("b'", '', 1)
         
-        print(raw_file_id)
-        exit()
-        
         file_id = first_replace.replace("'", "", 1)
         bucket_id = "MASTER"
         
@@ -133,7 +133,7 @@ if len(bucketList) == 1:
         
         i = 0
         for fragment in fragments:
-            with open(encrypted_file + "." + str(i), "wb") as fp:
+            with open("staging_dir/" + file_id + file_ext + ".aes." + str(i), "wb") as fp:
                 fp.write(fragment)
             i += 1
             
@@ -177,8 +177,40 @@ if len(bucketList) == 1:
         #        except:
         #            pass
         
+        os.remove(encrypted_file)
         staged_files = [f for f in listdir('staging_dir') if isfile(join('staging_dir', f))]
         
+        print('''''')
+        
+        num_staged_files = len(staged_files)
+        num_storage_nodes = len(storage_nodes)
+        
+        if num_staged_files > num_storage_nodes:
+            file_ratio = int(round(num_staged_files/num_storage_nodes))
+            
+            r_length = 1
+            list_position = 0
+            file_assignments = []
+            
+            while r_length is 1:
+                assigned_files = staged_files[list_position:file_ratio]
+                
+                if len(assigned_files) == 0:
+                    r_length = 0
+                    break
+                    
+                file_assignments.append(assigned_files)    
+                list_position += file_ratio
+            
+            node_assignments = []
+            
+            file_count = 0
+            for node in storage_nodes:
+                raw_files = file_assignments[file_count]
+                files = ','.join(raw_files)
+                
+                node_assignments.append("{node_id: '" + node[0] + ", node_ip: '" + node[2] + "', fragments: '" + files)
+                file_count += 1
         
         #for node in storage_nodes_list
         #node_c.execute('INSERT INTO files (file_id, bucket_id, bucketname, filepath, filename) VALUES ("' + file_id + '", "' + bucket_id + '", "' + bucket_name + '", "' + filepath'", "' + filename + '")')
