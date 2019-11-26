@@ -74,6 +74,17 @@ def create_buckets_table():
         )''')
 create_buckets_table()
 
+def create_storage_event():
+    with node_conn:
+        node_c.execute('''CREATE TABLE IF NOT EXISTS storage_events(
+            file_id blob NOT NULL,
+            node_id blob NOT NULL,
+            node_ip blo NOT NULL,
+            fragments blob NOT NULL,
+            transfer_status blob NOT NULL
+        )''')
+create_storage_event()
+
 def createMasterBucket():
     node_c.execute('SELECT * FROM buckets;')
     bucket_list = node_c.fetchall()
@@ -209,8 +220,31 @@ if len(bucketList) == 1:
                 raw_files = file_assignments[file_count]
                 files = ','.join(raw_files)
                 
-                node_assignments.append("{node_id: '" + node[0] + ", node_ip: '" + node[2] + "', fragments: '" + files)
+                node_assignments.append('{"node_id": "' + node[0] + '", "node_ip": "' + node[2] + '", "fragments": "' + files + '"}')
                 file_count += 1
+                
+            for assignment in node_assignments:
+                node_assignment = json.loads(assignment)
+                
+                node_id = node_assignment['node_id']
+                node_ip = node_assignment['node_ip']
+                fragments = node_assignment['fragments']
+                
+                
+                port = 2004
+                tcpClient = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+                message = bytes('[PREPARE_STORAGE]: file_id=' + file_id + ', satellite_id=' + my_node_id, 'UTF-8')
+                message_success = 0
+                while message_success is 0:
+                    try:
+                        tcpClient.connect((node_ip, port))
+                        tcpClient.send(message)
+                    except:
+                        pass
+                
+                node_c.execute('INSERT INTO storage_events (node_id, node_ip, file_id, fragments) VALUES ("' + node_id + '", "' + node_ip + '", "' + file_id + '", "' + fragments + '")')
+                node_conn.commit()
         
         #for node in storage_nodes_list
         #node_c.execute('INSERT INTO files (file_id, bucket_id, bucketname, filepath, filename) VALUES ("' + file_id + '", "' + bucket_id + '", "' + bucket_name + '", "' + filepath'", "' + filename + '")')
@@ -251,6 +285,7 @@ def findNodes():
             try:
                 tcpClient.connect((host, port))
                 tcpClient.send(bytes("[GETNODES]: " + my_node_id, "UTF-8"))
+                break
             except:
                 pass
                 
@@ -299,6 +334,7 @@ threads = []
  
 while True: 
     tcpServer.listen(4) 
+    print ("[+] Waiting for jobs...") 
     (conn, (ip,port)) = tcpServer.accept() 
     newthread = ClientThread(ip,port) 
     newthread.start() 

@@ -15,17 +15,6 @@ from pyftpdlib.authorizers import DummyAuthorizer
 from pyftpdlib.handlers import FTPHandler
 from pyftpdlib.servers import FTPServer
 
-authorizer = DummyAuthorizer()
-#authorizer.add_user("root", "ae0iuwRmna1851Yils1605Uees2199", "storage_dir", perm="elradfmwMT")
-authorizer.add_anonymous("storage_dir/")
-
-handler = FTPHandler
-handler.authorizer = authorizer
-
-server = FTPServer(("127.0.0.1", 2005), handler)
-server.serve_forever()
-
-
 conn = sqlite3.connect('dbs/storage_dbs/nodes.db')
 c = conn.cursor()
 
@@ -91,8 +80,19 @@ class ClientThread(Thread):
 
                 tcpClient = socket.socket(socket.AF_INET, socket.SOCK_STREAM) 
 
+                message = None
                 while message is None:
                     try:
+                        authorizer = DummyAuthorizer()
+                        #authorizer.add_user("root", "ae0iuwRmna1851Yils1605Uees2199", "storage_dir", perm="elradfmwMT")
+                        authorizer.add_anonymous("storage_dir/")
+                        
+                        handler = FTPHandler
+                        handler.authorizer = authorizer
+                        
+                        server = FTPServer(("127.0.0.1", 2005), handler)
+                        server.serve_forever()
+                    
                         tcpClient.connect((host, 2003))
                         tcpClient.send(bytes('[TRANSFER_READY]: node_id=' + my_node_id + ', file_id=', 'UTF-8'))
                         message = "message_sent"
