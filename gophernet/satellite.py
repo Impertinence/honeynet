@@ -230,7 +230,6 @@ if len(bucketList) == 1:
                 node_ip = node_assignment['node_ip']
                 fragments = node_assignment['fragments']
                 
-                
                 port = 2004
                 tcpClient = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
@@ -240,10 +239,13 @@ if len(bucketList) == 1:
                     try:
                         tcpClient.connect((node_ip, port))
                         tcpClient.send(message)
+                        
+                        message_success += 1
+                        break
                     except:
                         pass
                 
-                node_c.execute('INSERT INTO storage_events (node_id, node_ip, file_id, fragments) VALUES ("' + node_id + '", "' + node_ip + '", "' + file_id + '", "' + fragments + '")')
+                node_c.execute('INSERT INTO storage_events (node_id, node_ip, file_id, fragments, transfer_status) VALUES ("' + node_id + '", "' + node_ip + '", "' + file_id + '", "' + fragments + '", "0")')
                 node_conn.commit()
         
         #for node in storage_nodes_list
@@ -303,7 +305,7 @@ class ClientThread(Thread):
         node_type = ""
  
     def run(self):
-        node_conn = sqlite3.connect('dbs/nodes.db')
+        node_conn = sqlite3.connect('dbs/satellite_dbs/satellite.db')
         node_c = node_conn.cursor()
         node_list = []
         
@@ -312,6 +314,85 @@ class ClientThread(Thread):
             
             if "[TRANSFER_READY]" in data:
                 print(data)
+                split_message = data.split(',')
+                
+                node_id = split_message[0].replace('[TRANSFER_READY]: node_id=', '', 1)
+                file_id = split_message[1].replace(' file_id=', '', 1)
+                
+                #ftp = fptlib.FTP(ip)
+                #file = 
+                
+                #Checks if node is a storage node before transferring files
+                if "storage" in node_id:
+                    final_node_id = node_id.replace('storage-', '', 1)
+                    node_c.execute('SELECT * FROM storage_events WHERE node_id="' + final_node_id + '" AND file_id="' + file_id + '";')
+                    storage_events = node_c.fetchall()
+
+                    #Checks if there is a storage event for this storage node
+                    if len(storage_events) > 0:
+                        for event in storage_events:
+                            transfer_status = event[4]
+                            fragments = event[3]
+                            
+                            #Checks if files have already been tranferred
+                            if transfer_status != "0":
+                                print('asd')
+                                tcpClient = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                                
+                                #If the files have already been transferred send an error message to the node
+                                message_success = 0
+                                while message_success is 0:
+                                    try:
+                                        tcpClient.connect((ip, 2004))
+                                        tcpClient.send(bytes("[ERROR]: node_id=" + my_node_id + ", error_type=1003", "UTF-8"))
+                                        
+                                        message_success += 1
+                                        break
+                                    except:
+                                        pass
+                            else:
+                                fragment_list = fragments.split(",")
+                                
+                                #for fragment in staging_dir/ start an ftp session, open the fragment, and send it to the storage node
+                                for fragment in fragment_list:
+                                    session = FTP('127.0.0.1', 'root', 'password')
+                                    
+                                    file = open("staging_dir/" + fragment, 'rb')
+                                    session.storbinary("STOR " + fragment, file)
+                                    
+                                    file.close()
+                                    session.quit()
+                                    
+                    else:
+                        #If the node is not storage, send an error message back
+                        tcpClient = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                        
+                        message_success = 0
+                        while message_success is 0:
+                            try:
+                                tcpClient.connect((ip, 2004))
+                                tcpClient.send(bytes("[ERROR]: node_id=" + my_node_id + ", error_type=1002", "UTF-8"))
+                                        
+                                message_success += 1
+                                break
+                            except:
+                                pass
+                                
+                    
+                else:
+                    print('asd')
+                    tcpClient = socket.socket(socket.AF_INET, socket.SOCK_STREAM) 
+                    message = bytes("[ERROR]: node_id=" + my_node_id + ", error_type=1001", "UTF-8")
+                    
+                    message_succcess = 0
+                    while message_success is 0:
+                        try:
+                            tcpClient.connect((ip, 2004))
+                            tcpClient.send(message)
+                            message_success = 1
+                            break
+                        except:
+                            pass
                 
             if "[SENDNODE]" in data:
                 raw_message = data.replace('[SENDNODE]: node_id=', '', 1)

@@ -5,9 +5,9 @@ import os
 import hashlib
 import threading
 import time
+import random
 
 from threading import Thread
-from random import *
 from uuid import getnode as get_mac 
 from socketserver import ThreadingMixIn
 
@@ -21,7 +21,36 @@ c = conn.cursor()
 BUFFER_SIZE = 20
 transmit_port = 1980
 
-my_node_id = ("storage-" + str(get_mac()))
+def create_id_table():
+    with conn:
+        c.execute('''CREATE TABLE IF NOT EXISTS node_identity(
+            node_id blob NOT NULL
+        )''')
+create_id_table()
+
+def find_my_node_id():
+    c.execute('SELECT * FROM node_identity;')
+    results = c.fetchall()
+    
+    if len(results) == 0:
+        node_id = str(random.getrandbits(32))
+        with conn:
+            c.execute('INSERT INTO node_identity (node_id) VALUES ("' + node_id + '");')
+        
+find_my_node_id()
+
+c.execute('SELECT * FROM node_identity')
+node_identities = c.fetchall()
+
+raw_node_id = str(node_identities[0])
+
+first_replace = raw_node_id.replace("'", "", 1)
+second_replace = first_replace.replace("(", "", 1)
+third_replace = second_replace.replace(")", "", 1)
+fourth_replace = third_replace.replace(",", "", 1)
+fifth_replace = fourth_replace.replace("'", "", 1)
+
+my_node_id = "storage-" + fifth_replace
 
 def create_node_table():
     with conn:
@@ -71,6 +100,7 @@ class ClientThread(Thread):
             data = str(conn.recv(2048), "utf-8")
             
             if "[PREPARE_STORAGE]" in data:
+                print(data)
                 raw_message = data.split(',')
                 
                 file_id = raw_message[0].replace('[PREPARE_STORAGE]: file_id=', '', 1)
@@ -83,21 +113,24 @@ class ClientThread(Thread):
                 message = None
                 while message is None:
                     try:
+                        tcpClient.connect((host, 2003))
+                        tcpClient.send(bytes('[TRANSFER_READY]: node_id=' + my_node_id + ', file_id=' + file_id, 'UTF-8'))
+                        message = "message_sent"
+                        
+                        #launch ftp server to receive files
                         authorizer = DummyAuthorizer()
-                        #authorizer.add_user("root", "ae0iuwRmna1851Yils1605Uees2199", "storage_dir", perm="elradfmwMT")
-                        authorizer.add_anonymous("storage_dir/")
+                        authorizer.add_user('root', 'password', 'storage_dir/', perm='elradfmwMT')
                         
                         handler = FTPHandler
                         handler.authorizer = authorizer
                         
-                        server = FTPServer(("127.0.0.1", 2005), handler)
+                        server = FTPServer(("127.0.0.1", 21), handler)
                         server.serve_forever()
-                    
-                        tcpClient.connect((host, 2003))
-                        tcpClient.send(bytes('[TRANSFER_READY]: node_id=' + my_node_id + ', file_id=', 'UTF-8'))
-                        message = "message_sent"
                     except: 
                         pass
+                        
+            if "[ERROR]" in data:
+                print(data)
 file_list = []                
 
 def maintainConn():
@@ -138,4 +171,3 @@ while True:
  
 for t in threads: 
     t.join()
-    

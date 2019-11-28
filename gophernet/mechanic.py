@@ -1,4 +1,3 @@
-#https://www.bogotobogo.com/python/python_network_programming_server_client_file_transfer.php
 import socket
 import sqlite3
 import os
@@ -94,7 +93,9 @@ def maintainConn():
 
 maintainConn()
 
-def repaiirFiles():
+def getStorageEvents():
+    tcpClient = socket.socket()
+    threading.timer(300.0, getStorageEvents).startit()
     
     
 
