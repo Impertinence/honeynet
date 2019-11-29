@@ -15,13 +15,12 @@ from pyftpdlib.handlers import FTPHandler
 from pyftpdlib.servers import FTPServer
 
 authorizer = DummyAuthorizer()
-authorizer.add_user("root", "ae0iuwRmna1851Yils1605Uees2199", "storage_dir", perm="elradfmwMT")
-authorizer.add_anonymous("/home/nobody")
+authorizer.add_user("root", "password", "mechanic_dir", perm="elradfmwMT")
 
 handler = FTPHandler
 handler.authorizer = authorizer
 
-server = FTPServer(("127.0.0.1", 2005), handler)
+server = FTPServer(("127.0.0.1", 21), handler)
 
 
 conn = sqlite3.connect('dbs/storage_dbs/nodes.db')
@@ -93,15 +92,9 @@ def maintainConn():
 
 maintainConn()
 
-def getStorageEvents():
-    tcpClient = socket.socket()
-    threading.timer(300.0, getStorageEvents).startit()
-    
-    
-
 # Multithreaded Python server : TCP Server Socket Program Stub
 TCP_IP = '0.0.0.0' 
-TCP_PORT = 2004 
+TCP_PORT = 2002 
 BUFFER_SIZE = 20  # Usually 1024, but we need quick response 
 
 tcpServer = socket.socket(socket.AF_INET, socket.SOCK_STREAM) 
