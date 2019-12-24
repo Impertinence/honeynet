@@ -3,8 +3,7 @@ WHAT IS CONDIMENT?
 Condiment is a decentralized storage network protocol and platform being developed by Gopher Labs. Condiment leverages the processing power and storage space of the world's 20+ billion internet connected devices
 to provide a living, breathing platform for secure decentralized data storage, hosting, and browsing.
 
-
-Common Terms and Concepts:
+COMMON TERMS AND CONCEPTS:
 
 Browser - Nodes on the network which only have read access to public satellite buckets.
 
