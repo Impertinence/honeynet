@@ -8,8 +8,7 @@ Common Terms and Concepts:
 
 Browser - Nodes on the network which only have read access to public satellite buckets.
 Storage - A node which stores files on the network. Any internet connected device with excess storage space of at least 200gb can be a storage node.
-Mechanic - A node which repairs file loss due to node churn. Certain nodes may go offline for various reason. In these cases, the mechanic node retrieves any remaining file fragments from their remote locations
-           and generates the missing file fragments, ensuring all files are available on the network 24/7.
+Mechanic - A node which repairs file loss due to node churn. Certain nodes may go offline for various reason. In these cases, the mechanic node retrieves any remaining file fragments from their remote locations and generates the missing file fragments, ensuring all files are available on the network 24/7.
 Utility - A utility node is a node which provides utility information on the network including, fragment locations, node lists, network health and node churn. 
 Satellite - A satellite node is a node on the Condiment network which is able to write and read files from the network
 Bucket - A bucket is a collection of artificial filesystems on the network which can either be made private to satellite access, or public to Condiment browsers 
