@@ -15,7 +15,8 @@ Mechanic - A node which repairs file loss due to node churn. Certain nodes may g
 Utility - A utility node is a node which provides utility information on the network including, fragment locations, node lists, network health and node churn. 
 
 Satellite - A satellite node is a node on the Condiment network which is able to write and read files from the network
-Bucket - A bucket is a collection of artificial filesystems on the network which can either be made private to satellite access, or public to Condiment browsers 
+
+Bucket - A bucket is a collection of artificial filepaths on the network which can either be made private to satellite access, or public to Condiment browsers 
 
 
 HOW DOES CONDIMENT WORK? 
@@ -30,3 +31,6 @@ BENEFITS OF CONDIMENT:
 Condiment allows for a more secure and permanent file hosting and browsing solution. To destroy or read a file without permission, attackers must compromise 50% or more of the network's devices. Even in 
 this extreme case, attackers must be able to crack AES to actually read files stored on the network unless files are stored in a public bucket. Condiment provides faster file access as nodes provide file 
 fragments rather than a singular file. This allows for browser nodes to retrieve 50% of a files fragments in order to read the file instead of retrieving an entire file. 
+
+
+BUILT BY PRANAV HEGDE AND GOPHER LABS
